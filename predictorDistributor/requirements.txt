@@ -1,0 +1,6 @@
+fastapi 
+httpx
+pyyaml
+pydantic
+uvicorn
+msgpack
