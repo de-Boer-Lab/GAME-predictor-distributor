@@ -1,0 +1,96 @@
+Bootstrap: docker
+From: python:3.13-slim
+
+%files
+    ./app /app
+    ./run.py /run.py
+    ./requirements.txt /requirements.txt
+
+%environment
+    # Prevent automatic binding of host directories
+    export APPTAINER_NO_MOUNT="home,tmp,proc,sys"
+
+    # Make the Python virtual environment the default for the container.
+    export PATH="/opt/venv/bin:$PATH"
+    export LD_LIBRARY_PATH="/opt/venv/lib:$LD_LIBRARY_PATH"
+
+    export PYTHONUNBUFFERED=1
+
+    # Allow /run.py to find and import the /app directory
+    export PYTHONPATH="/:$PYTHONPATH"
+
+%post
+    # Install system packages needed for conda and building extensions
+    echo "Installing system dependencies..."
+    apt-get update -y && \
+    apt-get install -y ca-certificates python3-venv build-essential --no-install-recommends && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+    # Update the certificate store inside the container
+    echo "Updating certificates..."
+    update-ca-certificates
+
+    # Create and use a virtual environment
+    echo "Setting up Python virtual environment at /opt/venv to protect against mixing 'apt' provided packages and 'pip' provided packages..."
+    python3 -m venv /opt/venv
+
+    # Install Python dependencies into venv
+    echo "Installing Python dependencies into the virtual environment..."
+    /opt/venv/bin/pip install --no-cache-dir -r /requirements.txt
+
+    # Set permissions
+    echo "Setting permissions..."
+    chmod -R 755 /app /opt/venv /run.py
+
+    # Clean up the requirements file
+    rm /requirements.txt
+
+%runscript
+    # Ensure the venv is in the path
+    export PATH="/opt/venv/bin:$PATH"
+
+    echo "Starting PredictorDistributor container..."
+    echo "Looking for config file at: /distributor_config.yaml"
+
+    exec python3 /run.py "$@"
+
+%labels
+    Author "Satyam Priyadarshi"
+    Version "1.0"
+    Description "A RESTful PredictorDistributor for the Genomic API for Model Evaluation Framework"
+
+%help
+    This container runs the PredictorDistributor (PD), which is a FastAPI application that 
+    acts as a transparent scatter-gather orchestrator for the Genomic API for Model Evaluation (GAME) framework.
+
+    It helps parallelize large prediction requests across multiple Predictor "worker" instances,
+    which are usually running on separate GPU or CPU nodes.
+
+    **NOTE:** This container only requires a CPU, not GPU.
+
+    Run the container:
+    ```bash
+    apptainer run --containall -B /absolute/path/to/distributor_config.yaml:/distributor_config.yaml predictorDistributor.sif HOST_IP HOST_PORT
+    ```
+
+    Details:
+    - The container runs a FastAPI REST API that receives prediction requests from an Evaluator.
+    - It splits the request into batches and "scatters" them to all workers defined in the config file.
+    - It then "gathers" all responses, performs consistency checks (for Matcher alignments),
+      merges, sorts, and returns a single, complete response.
+    - Replace `HOST_IP` and `HOST_PORT` with the IP address and port where the Distributor API should listen.
+    - The `--containall` flag ensures a clean, isolated environment.
+
+    API Endpoints:
+    - GET  /formats - Proxies the request to the first worker to get supported formats.
+    - GET  /help    - Proxies the request to the first worker to get help info.
+    - POST /predict - Main endpoint for receiving a large request and performing scatter-gather.
+
+    Example Command:
+    ```bash
+    apptainer run --containall -B /absolute/path/to/distributor_config.yaml:/distributor_config.yaml predictorDistributor.sif 172.xx.xx.xxx 8000
+    ```
+
+    Arguments:
+    1. `HOST_IP`: IP address where the Distributor API will listen.
+    2. `HOST_PORT`: Port number the Distributor API will listen on.
