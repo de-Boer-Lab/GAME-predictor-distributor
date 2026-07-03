@@ -1,10 +1,9 @@
-distributor_name: "PredictorDistributor_v1"
 base_url_template: "http://{pred_ip}:{pred_port}"
 predictor_pool:
   - id: "worker_1"
-    pred_ip: "host_ip1" # Replace with worker/ Predictor IP
-    pred_port: "6500"
+    pred_ip: "172.16.32.64" # Replace with worker/ Predictor IP
+    pred_port: "8000"
   - id: "worker_2"
-    pred_ip: "host_ip2" # Replace with worker/ Predictor IP
-    pred_port: "7000"
+    pred_ip: "172.16.32.64" # Replace with worker/ Predictor IP
+    pred_port: "8001"
 # Add more as necessary

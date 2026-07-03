@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 
-from .config import configuration_settings
+from .config import configuration_settings, DISTRIBUTOR_NAME
 from .distributor import run_scatter_gather, client as distributor_http_client
 
 @asynccontextmanager
@@ -14,7 +14,7 @@ async def lifespan(app: FastAPI):
     Manages the startup and shutdown of the Distributor and its workers.
     (Simplified version: no health checks)
     """
-    print("Starting PredictorDistributor...")
+    print(f"Starting {DISTRIBUTOR_NAME}...")
 
     # No workers get launched. This just waits for requests.
     print("Distributor is ready to accept requests.")
@@ -23,7 +23,7 @@ async def lifespan(app: FastAPI):
     yield  # --- APPLICATION IS NOW RUNNING ---
     
     # --- SHUTDOWN LOGIC ---
-    print("Shutting down... ")
+    print(f"Shutting down {DISTRIBUTOR_NAME}... ")
     await distributor_http_client.aclose() # Close the main HTTP client
     print("Shutdown complete.")
 
@@ -69,7 +69,7 @@ async def help():
     try:
         resp = await distributor_http_client.get(first_worker_url)
         resp.raise_for_status()
-        return resp.json
+        return resp.json()
     except Exception as e:
         return JSONResponse(
             {

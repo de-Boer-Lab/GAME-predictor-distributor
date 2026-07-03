@@ -38,6 +38,10 @@ From: python:3.13-slim
     echo "Installing Python dependencies into the virtual environment..."
     /opt/venv/bin/pip install --no-cache-dir -r /requirements.txt
 
+    # Strip any host-side __pycache__ that came in via %files
+    echo "Cleaning up __pycache__ directories..."
+    find /app -type d -name __pycache__ -exec rm -rf {} +
+
     # Set permissions
     echo "Setting permissions..."
     chmod -R 755 /app /opt/venv /run.py
@@ -56,7 +60,7 @@ From: python:3.13-slim
 
 %labels
     Author "Satyam Priyadarshi"
-    Version "1.0"
+    game_schema_version "1.0"
     Description "A RESTful PredictorDistributor for the Genomic API for Model Evaluation Framework"
 
 %help
