@@ -18,6 +18,12 @@ async def run_scatter_gather(payload: Dict[str, Any],
     Handles json/msgpack content negotiation with workers.
     """
     
+    # 0. The prediction_ranges keys must match the sequence keys. Once the request is split, no single worker
+    # can see the mismatch, so reject it here before any worker runs the model (same check/message as the Predictors).
+    ranges = payload.get("prediction_ranges")
+    if isinstance(ranges, dict) and isinstance(payload.get("sequences"), dict) and ranges.keys() != payload["sequences"].keys():
+        return {"error": [{"bad_prediction_request": "sequence ids in prediction_ranges do not match those in sequences"}]}
+
     # 1. SCATTER: Create batch payloads
     worker_urls = [p.base_url for p in configuration_settings.predictor_pool]
     num_batches = len(worker_urls)
